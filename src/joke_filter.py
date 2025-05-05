@@ -20,32 +20,31 @@ def filter_jokes(jokes, max_length=None, offensive_words=None, tags=None):
     if not jokes:
         return []
 
+    # Convert optional parameters to empty lists if None
+    offensive_words = offensive_words or []
+    tags = tags or []
+
+    # Convert offensive words to lowercase for case-insensitive matching
+    offensive_words_lower = [word.lower() for word in offensive_words]
+
     filtered_jokes = []
 
     for joke in jokes:
-        # Initialize flags for each criterion
-        meets_length_criteria = True
-        meets_offensive_criteria = True
-        meets_tag_criteria = True
-
-        # Check max length
-        if max_length is not None:
-            meets_length_criteria = len(joke.get('text', '')) <= max_length
+        # Check length
+        if max_length is not None and len(joke.get('text', '')) > max_length:
+            continue
 
         # Check offensive words
-        if offensive_words:
-            offensive_words_lower = [word.lower() for word in offensive_words]
-            meets_offensive_criteria = not any(
-                word in joke.get('text', '').lower() 
-                for word in offensive_words_lower
-            )
+        if offensive_words_lower and any(
+            word in joke.get('text', '').lower() 
+            for word in offensive_words_lower
+        ):
+            continue
 
         # Check tags
-        if tags:
-            meets_tag_criteria = any(tag in joke.get('tags', []) for tag in tags)
+        if tags and not any(tag in joke.get('tags', []) for tag in tags):
+            continue
 
-        # Add joke only if it meets ALL specified criteria
-        if meets_length_criteria and meets_offensive_criteria and meets_tag_criteria:
-            filtered_jokes.append(joke)
+        filtered_jokes.append(joke)
 
     return filtered_jokes
