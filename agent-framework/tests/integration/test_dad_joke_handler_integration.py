@@ -45,11 +45,25 @@ def test_dad_joke_handler(setup_environment):
             tool_choice={"type": "required_any"},
         )
 
-        tool_use = next(block for block in message.content if block.type == "tool_use")
-        assert tool_use.name == "dad_joke_handler"
+        # Validate the response type and general structure
+        assert isinstance(message, dict), "Response should be a dictionary"
+        assert "content" in message, "Response should have a 'content' key"
+        assert isinstance(message["content"], list), "Content should be a list"
+
+        # Verify at least one tool use in the content
+        tool_calls = [block for block in message["content"] if block.get("type") == "tool_call"]
+        assert len(tool_calls) > 0, "Should have at least one tool call"
+
+        # Find the dad joke tool call
+        dad_joke_calls = [call for call in tool_calls if call.get("tool_call", {}).get("name") == "dad_joke_handler"]
+        assert len(dad_joke_calls) > 0, "Should have a dad joke tool call"
+
+        tool_call = dad_joke_calls[0]["tool_call"]
+        tool_use_id = tool_call.get("id")
+        assert tool_use_id is not None, "Tool call should have an ID"
 
         # Execute tool and get response
-        result = client.execute_tool(tool_use)
+        result = client.execute_tool(type('ToolUse', (), {'name': tool_call['name'], 'id': tool_use_id}))
         joke_data = result[0]  # Assuming the result is a dictionary
         
         # Validate joke response
@@ -63,11 +77,12 @@ def test_dad_joke_handler(setup_environment):
         # Send a response based on the joke
         response = client.send_message(
             tool_response=str(joke_data),
-            tool_use_id=tool_use.id,
-            conversation_id=message.conversation_id,
+            tool_use_id=tool_use_id,
+            conversation_id=message.get("conversation_id"),
         )
 
-        # Verify general response properties
-        assert hasattr(response, 'content'), "Response should have 'content' attribute"
-        assert hasattr(response, 'role'), "Response should have 'role' attribute"
-        assert response.role == 'assistant', "Response role should be 'assistant'"
+        # Verify response is a dictionary with expected structure
+        assert isinstance(response, dict), "Response should be a dictionary"
+        assert "content" in response, "Response should have a 'content' key"
+        assert "role" in response, "Response should have a 'role' key"
+        assert response["role"] == "assistant", "Response role should be 'assistant'"
