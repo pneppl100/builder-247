@@ -60,17 +60,13 @@ def test_filter_jokes_multiple_criteria():
         {'text': 'Very long joke that is not appropriate', 'tags': ['humor']},
         {'text': 'Clean tech joke', 'tags': ['tech']}
     ]
-    # Should only include the 'Short science joke' 
-    # because it meets all these strict criteria:
-    # 1. Length <= 20
-    # 2. No offensive words
-    # 3. Has either 'science' or 'tech' tag
     filtered = filter_jokes(
         jokes, 
         max_length=20, 
         offensive_words=['bad', 'offensive'], 
         tags=['science', 'tech']
     )
+    # Only the 'Short science joke' meets all criteria
     assert len(filtered) == 1
     assert filtered[0]['text'] == 'Short science joke'
 
