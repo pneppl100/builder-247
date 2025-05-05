@@ -27,24 +27,13 @@ def filter_jokes(jokes, max_length=None, offensive_words=None, tags=None):
     # Convert offensive words to lowercase for case-insensitive matching
     offensive_words_lower = [word.lower() for word in offensive_words]
 
-    filtered_jokes = []
-
-    for joke in jokes:
-        # Check length
-        if max_length is not None and len(joke.get('text', '')) > max_length:
-            continue
-
-        # Check offensive words
-        if offensive_words_lower and any(
-            word in joke.get('text', '').lower() 
-            for word in offensive_words_lower
-        ):
-            continue
-
-        # Check tags
-        if tags and not any(tag in joke.get('tags', []) for tag in tags):
-            continue
-
-        filtered_jokes.append(joke)
+    # Filter jokes that match ALL criteria
+    filtered_jokes = [
+        joke for joke in jokes
+        if (max_length is None or len(joke.get('text', '')) <= max_length) and
+           (not offensive_words_lower or 
+            not any(word in joke.get('text', '').lower() for word in offensive_words_lower)) and
+           (not tags or any(tag in joke.get('tags', []) for tag in tags))
+    ]
 
     return filtered_jokes
