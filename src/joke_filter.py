@@ -15,7 +15,7 @@ def filter_jokes(jokes, max_length=None, offensive_words=None, tags=None):
         tags (list, optional): List of allowed tags. Defaults to None.
 
     Returns:
-        list: Filtered list of jokes that meet the specified criteria.
+        list: Filtered list of jokes that meet ALL specified criteria.
     """
     if not jokes:
         return []
