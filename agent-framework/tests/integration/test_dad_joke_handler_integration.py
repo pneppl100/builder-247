@@ -7,13 +7,12 @@ from anthropic.types import Message
 
 
 @pytest.fixture(autouse=True)
-def setup_environment(tmp_path):
+def setup_environment():
     """Set up environment variables and client before each test."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         pytest.skip("ANTHROPIC_API_KEY environment variable not set")
-    temp_db = tmp_path / "test.db"
-    client = AnthropicClient(api_key=api_key, db_path=temp_db)
+    client = AnthropicClient(api_key=api_key)
     client.register_tools_from_directory("prometheus_swarm/tools/execute_command")
     return client
 
