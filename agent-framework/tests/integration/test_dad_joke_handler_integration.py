@@ -6,6 +6,7 @@ import requests_mock
 from prometheus_swarm.clients.anthropic_client import AnthropicClient
 from prometheus_swarm.tools.execute_command.definitions import TOOL_DEFINITIONS
 from prometheus_swarm.tools.execute_command.implementations import dad_joke_handler
+from typing import Any, Dict
 
 
 @pytest.fixture(autouse=True)
@@ -40,18 +41,18 @@ def test_dad_joke_handler(setup_environment):
         }, headers={'Content-Type': 'application/json'})
 
         # Request a dad joke
-        message = client.send_message(
+        result: Dict[str, Any] = client.send_message(
             "Tell me a dad joke",
             tool_choice={"type": "required_any"},
         )
 
         # Validate the response type and general structure
-        assert isinstance(message, dict), "Response should be a dictionary"
-        assert "content" in message, "Response should have a 'content' key"
-        assert isinstance(message["content"], list), "Content should be a list"
+        assert isinstance(result, dict), "Result should be a dictionary"
+        assert "content" in result, "Result should have a 'content' key"
+        assert isinstance(result["content"], list), "Content should be a list"
 
         # Verify at least one tool use in the content
-        tool_calls = [block for block in message["content"] if block.get("type") == "tool_call"]
+        tool_calls = [block for block in result["content"] if block.get("type") == "tool_call"]
         assert len(tool_calls) > 0, "Should have at least one tool call"
 
         # Find the dad joke tool call
@@ -62,9 +63,14 @@ def test_dad_joke_handler(setup_environment):
         tool_use_id = tool_call.get("id")
         assert tool_use_id is not None, "Tool call should have an ID"
 
-        # Execute tool and get response
-        result = client.execute_tool(type('ToolUse', (), {'name': tool_call['name'], 'id': tool_use_id}))
-        joke_data = result[0]  # Assuming the result is a dictionary
+        # Simulate tool execution in a way compatible with the client's implementation
+        mock_tool_use = type('MockToolUse', (), {
+            'id': tool_use_id, 
+            'name': 'dad_joke_handler'
+        })
+        
+        # Attempt to execute the tool
+        joke_data = client.execute_tool(mock_tool_use)
         
         # Validate joke response
         assert isinstance(joke_data, dict)
@@ -78,7 +84,7 @@ def test_dad_joke_handler(setup_environment):
         response = client.send_message(
             tool_response=str(joke_data),
             tool_use_id=tool_use_id,
-            conversation_id=message.get("conversation_id"),
+            conversation_id=result.get("conversation_id"),
         )
 
         # Verify response is a dictionary with expected structure
