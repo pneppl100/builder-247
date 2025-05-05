@@ -34,7 +34,7 @@ def test_dad_joke_handler(setup_environment):
     # Request a dad joke
     message = client.send_message(
         "Tell me a dad joke",
-        tool_choice={"type": "any"},
+        tool_choice={"type": "required_any"},
     )
 
     assert isinstance(message, Message)
