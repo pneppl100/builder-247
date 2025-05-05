@@ -15,13 +15,13 @@ def setup_environment():
     if not api_key:
         pytest.skip("ANTHROPIC_API_KEY environment variable not set")
     client = AnthropicClient(api_key=api_key)
+    tools_config = next(tool for tool in TOOL_DEFINITIONS if tool['function']['name'] == 'dad_joke_handler')
     client.tools = {
         "dad_joke_handler": {
             "function": dad_joke_handler,
-            "definition": next(
-                tool for tool in TOOL_DEFINITIONS 
-                if tool["function"]["name"] == "dad_joke_handler"
-            )
+            "name": tools_config['function']['name'],
+            "description": tools_config['function']['description'],
+            "parameters": tools_config['function']['parameters']
         }
     }
     return client
