@@ -20,32 +20,24 @@ def filter_jokes(jokes, max_length=None, offensive_words=None, tags=None):
     if not jokes:
         return []
 
-    filtered_jokes = jokes.copy()
+    filtered_jokes = []
 
-    # Filter by max length
-    if max_length is not None:
-        filtered_jokes = [
-            joke for joke in filtered_jokes 
-            if len(joke.get('text', '')) <= max_length
-        ]
+    for joke in jokes:
+        # Check max length
+        if max_length is not None and len(joke.get('text', '')) > max_length:
+            continue
 
-    # Filter by offensive words
-    if offensive_words:
-        # Convert offensive words to lowercase for case-insensitive matching
-        offensive_words = [word.lower() for word in offensive_words]
-        filtered_jokes = [
-            joke for joke in filtered_jokes
-            if not any(
-                word in joke.get('text', '').lower() 
-                for word in offensive_words
-            )
-        ]
+        # Check offensive words
+        if offensive_words:
+            offensive_words_lower = [word.lower() for word in offensive_words]
+            if any(word in joke.get('text', '').lower() for word in offensive_words_lower):
+                continue
 
-    # Filter by tags
-    if tags:
-        filtered_jokes = [
-            joke for joke in filtered_jokes
-            if any(tag in joke.get('tags', []) for tag in tags)
-        ]
+        # Check tags
+        if tags:
+            if not any(tag in joke.get('tags', []) for tag in tags):
+                continue
+
+        filtered_jokes.append(joke)
 
     return filtered_jokes
