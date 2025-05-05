@@ -20,26 +20,20 @@ def filter_jokes(jokes, max_length=None, offensive_words=None, tags=None):
     if not jokes:
         return []
 
-    # Convert optional parameters to empty lists if None
+    # Convert optional parameters to empty lists if None and prepare for filtering
     offensive_words = [word.lower() for word in (offensive_words or [])]
     tags = tags or []
 
-    # Precise filtering to match all criteria
+    # Precise filtering with multiple criteria checks
     filtered_jokes = []
     for joke in jokes:
-        # Check length
-        if max_length is not None and len(joke.get('text', '')) > max_length:
-            continue
-
-        # Check offensive words
-        if offensive_words and any(
-            word in joke.get('text', '').lower() 
-            for word in offensive_words
-        ):
-            continue
-
-        # Check tags
-        if tags and not any(tag in joke.get('tags', []) for tag in tags):
+        # Skip if joke fails ANY criterion
+        if (max_length is not None and len(joke.get('text', '')) > max_length) or \
+           (offensive_words and any(
+               word in joke.get('text', '').lower() 
+               for word in offensive_words
+           )) or \
+           (tags and not any(tag in joke.get('tags', []) for tag in tags)):
             continue
 
         # If we've passed all checks, include the joke
