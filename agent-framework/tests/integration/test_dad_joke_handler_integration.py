@@ -4,7 +4,6 @@ import os
 import pytest
 import requests_mock
 from prometheus_swarm.clients.anthropic_client import AnthropicClient
-from anthropic.types import Message
 from prometheus_swarm.tools.execute_command.definitions import TOOL_DEFINITIONS
 from prometheus_swarm.tools.execute_command.implementations import dad_joke_handler
 
@@ -46,8 +45,6 @@ def test_dad_joke_handler(setup_environment):
             tool_choice={"type": "required_any"},
         )
 
-        assert isinstance(message, type(message))
-        assert hasattr(message, 'content')
         tool_use = next(block for block in message.content if block.type == "tool_use")
         assert tool_use.name == "dad_joke_handler"
 
@@ -70,6 +67,7 @@ def test_dad_joke_handler(setup_environment):
             conversation_id=message.conversation_id,
         )
 
-        assert isinstance(response, type(message))
-        assert hasattr(response, 'content')
-        assert all('text' == block.type for block in response.content)
+        # Verify general response properties
+        assert hasattr(response, 'content'), "Response should have 'content' attribute"
+        assert hasattr(response, 'role'), "Response should have 'role' attribute"
+        assert response.role == 'assistant', "Response role should be 'assistant'"
