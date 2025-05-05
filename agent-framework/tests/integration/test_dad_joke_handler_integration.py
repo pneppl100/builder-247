@@ -4,6 +4,8 @@ import os
 import pytest
 from prometheus_swarm.clients.anthropic_client import AnthropicClient
 from anthropic.types import Message
+from prometheus_swarm.tools.execute_command.definitions import TOOL_DEFINITIONS
+from prometheus_swarm.tools.execute_command.implementations import dad_joke_handler
 
 
 @pytest.fixture(autouse=True)
@@ -13,7 +15,15 @@ def setup_environment():
     if not api_key:
         pytest.skip("ANTHROPIC_API_KEY environment variable not set")
     client = AnthropicClient(api_key=api_key)
-    client.register_tools_from_directory("prometheus_swarm/tools/execute_command")
+    client.tools = {
+        "dad_joke_handler": {
+            "function": dad_joke_handler,
+            "definition": next(
+                tool for tool in TOOL_DEFINITIONS 
+                if tool["function"]["name"] == "dad_joke_handler"
+            )
+        }
+    }
     return client
 
 
