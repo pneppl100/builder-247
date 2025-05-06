@@ -18,7 +18,12 @@ class PrometheusError(Exception):
         super().__init__(message)
         self.message = message
         self.context = context or {}
-        self.traceback = traceback.format_exc()
+        
+        # Capture traceback explicitly
+        try:
+            raise
+        except Exception:
+            self.traceback = traceback.format_exc()
 
     def __str__(self):
         """Provide a detailed string representation of the error."""
@@ -90,6 +95,9 @@ def format_error(
     }
 
     if include_traceback:
-        error_dict["traceback"] = traceback.format_exc()
+        try:
+            error_dict["traceback"] = traceback.format_exc()
+        except Exception:
+            error_dict["traceback"] = "Unable to capture traceback"
 
     return error_dict
