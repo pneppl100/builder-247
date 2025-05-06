@@ -2,6 +2,7 @@
 
 from typing import Optional, Dict, Any
 import traceback
+import sys
 
 
 class PrometheusError(Exception):
@@ -19,11 +20,8 @@ class PrometheusError(Exception):
         self.message = message
         self.context = context or {}
         
-        # Capture traceback explicitly
-        try:
-            raise
-        except Exception:
-            self.traceback = traceback.format_exc()
+        # Capture traceback at initialization
+        self.traceback = ''.join(traceback.format_stack()[:-1])
 
     def __str__(self):
         """Provide a detailed string representation of the error."""
