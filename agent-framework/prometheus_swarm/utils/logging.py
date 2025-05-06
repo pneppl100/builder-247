@@ -7,31 +7,20 @@ from typing import Any, Optional, Union
 from pathlib import Path
 from functools import wraps
 import ast
-from colorama import init, Fore, Style
 from .errors import format_error
 
-# Initialize colorama for cross-platform color support
-init(strip=False)  # Force color output even when not in a terminal
+# Configure root logger to capture all log levels
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stderr)
+    ]
+)
 
 # Create our logger
 logger = logging.getLogger("agent_framework")
-logger.setLevel(logging.INFO)
-# Prevent propagation to avoid duplicate logs
 logger.propagate = False
-
-# Track if logging has been configured
-_logging_configured = False
-
-
-class ColoredStreamHandler(logging.StreamHandler):
-    """Custom stream handler with colored output."""
-    def format(self, record):
-        """Override formatting to add color for different levels."""
-        msg = super().format(record)
-        if record.levelno >= logging.ERROR:
-            return f"{Fore.RED}{msg}{Style.RESET_ALL}"
-        return msg
-
 
 def configure_logging(log_level: int = logging.INFO) -> None:
     """
@@ -40,17 +29,7 @@ def configure_logging(log_level: int = logging.INFO) -> None:
     Args:
         log_level: Logging level (default: logging.INFO)
     """
-    global _logging_configured
-    logger.handlers.clear()  # Ensure clean logging setup
-
-    console_handler = ColoredStreamHandler(sys.stdout)
-    console_handler.setLevel(log_level)
-    console_formatter = logging.Formatter('%(message)s')
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
     logger.setLevel(log_level)
-
-    _logging_configured = True
 
 
 def log_advanced_error(
@@ -68,9 +47,6 @@ def log_advanced_error(
         include_traceback: Whether to include full stack trace
         log_level: Logging level for the error
     """
-    if not _logging_configured:
-        configure_logging()
-
     # Convert string context to dictionary if needed
     if isinstance(context, str):
         context = {"message": context}
@@ -78,18 +54,14 @@ def log_advanced_error(
     # Format the error with context
     error_info = format_error(error, context, include_traceback)
 
-    # Capture current outputs
-    sys.stdout.flush()
-    sys.stderr.flush()
-
     # Log error details
-    logger.error(f"Error: {error_info['message']}")
+    logger.log(log_level, f"Error: {error_info['message']}")
     
     if context:
-        logger.error(f"Context: {context}")
+        logger.log(log_level, f"Context: {context}")
     
     if include_traceback:
-        logger.error(f"Traceback:\n{error_info['traceback']}")
+        logger.log(log_level, f"Traceback:\n{error_info['traceback']}")
 
 
 # Alias functions with default logging methods
