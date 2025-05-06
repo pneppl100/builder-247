@@ -1,15 +1,21 @@
-import { transactionIDValidator } from '../../src/middleware/transaction_id_validator';
+import { transactionIDValidator, TransactionValidationResult, TransactionUniquenessService } from '../../src/middleware/transaction_id_validator';
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 // Mock Uniqueness Service
-class MockUniquenessService {
+class MockUniquenessService implements TransactionUniquenessService {
   private usedIds: Set<string> = new Set();
 
-  async isUnique(id: string): Promise<boolean> {
-    if (this.usedIds.has(id)) return false;
+  async validateTransaction(id: string): Promise<TransactionValidationResult> {
+    if (this.usedIds.has(id)) {
+      return {
+        isValid: false,
+        error: 'Duplicate Transaction',
+        details: 'Transaction ID has been used before'
+      };
+    }
     this.usedIds.add(id);
-    return true;
+    return { isValid: true };
   }
 }
 
@@ -27,7 +33,8 @@ describe('Transaction ID Validator Middleware', () => {
     };
     mockResponse = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn()
+      json: jest.fn(),
+      locals: {}
     };
     mockNext = jest.fn();
     mockUniquenessService = new MockUniquenessService();
@@ -44,6 +51,7 @@ describe('Transaction ID Validator Middleware', () => {
 
     expect(mockNext).toHaveBeenCalled();
     expect(mockRequest.transactionId).toBe(validTransactionId);
+    expect(mockResponse.locals.transactionValidation).toEqual({ isValid: true });
   });
 
   test('should fail if transaction ID is required but missing', async () => {
@@ -53,7 +61,8 @@ describe('Transaction ID Validator Middleware', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(400);
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: 'Transaction ID is required'
+        isValid: false,
+        error: 'Transaction ID Required'
       })
     );
     expect(mockNext).not.toHaveBeenCalled();
@@ -68,6 +77,7 @@ describe('Transaction ID Validator Middleware', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(400);
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
+        isValid: false,
         error: 'Invalid Transaction ID'
       })
     );
@@ -96,7 +106,8 @@ describe('Transaction ID Validator Middleware', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(409);
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: 'Duplicate Transaction ID'
+        isValid: false,
+        error: 'Duplicate Transaction'
       })
     );
     expect(mockNext).not.toHaveBeenCalled();
@@ -125,10 +136,10 @@ describe('Transaction ID Validator Middleware', () => {
     expect(mockRequest.transactionId).toBe(validTransactionId);
   });
 
-  test('should handle middleware errors gracefully', async () => {
+  test('should handle uniqueness service errors gracefully', async () => {
     // Simulate a service that always throws an error
     const brokenService = {
-      isUnique: jest.fn().mockRejectedValue(new Error('Service error'))
+      validateTransaction: jest.fn().mockRejectedValue(new Error('Service error'))
     };
 
     mockRequest.headers = { 'x-transaction-id': uuidv4() };
@@ -141,7 +152,8 @@ describe('Transaction ID Validator Middleware', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(500);
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: 'Internal Server Error'
+        isValid: false,
+        error: 'Internal Validation Error'
       })
     );
     expect(mockNext).not.toHaveBeenCalled();
