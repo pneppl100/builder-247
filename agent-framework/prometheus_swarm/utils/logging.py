@@ -28,7 +28,11 @@ class SectionFormatter(logging.Formatter):
 
     def format(self, record):
         # Color and format logic remains the same as before
-        return super().format(record)
+        base_msg = super().format(record)
+        # Ensure colorized errors appear
+        if record.levelno >= logging.ERROR:
+            base_msg = f"{Fore.RED}{base_msg}{Style.RESET_ALL}"
+        return base_msg
 
 
 def configure_logging(log_level: int = logging.INFO) -> None:
@@ -39,27 +43,16 @@ def configure_logging(log_level: int = logging.INFO) -> None:
         log_level: Logging level (default: logging.INFO)
     """
     global _logging_configured
-    if _logging_configured:
-        return
+    logger.handlers.clear()  # Ensure clean logging setup
 
-    try:
-        # Remove any existing handlers to prevent duplicates
-        for handler in logger.handlers[:]:
-            logger.removeHandler(handler)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
+    console_formatter = logging.Formatter('%(message)s')
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+    logger.setLevel(log_level)
 
-        # Create console handler with colored output
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(log_level)
-        console_formatter = SectionFormatter()
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
-
-        logger.setLevel(log_level)
-        logger.info(f"Logging configured: {logging.getLevelName(log_level)}+ to console")
-        _logging_configured = True
-
-    except Exception as e:
-        print(f"Failed to configure logging: {e}", file=sys.stderr)
+    _logging_configured = True
 
 
 def log_advanced_error(
@@ -87,21 +80,19 @@ def log_advanced_error(
     # Format the error with context
     error_info = format_error(error, context, include_traceback)
 
-    # Log the error with the specified log level
+    # Log each component of the error separately
     logger.log(log_level, f"Error: {error_info['message']}")
     
     if context:
         logger.log(log_level, f"Context: {context}")
     
-    if include_traceback:
-        logger.log(log_level, "Traceback:\n" + error_info['traceback'])
+    if include_traceback and 'traceback' in error_info:
+        logger.log(log_level, f"Traceback:\n{error_info['traceback']}")
 
 
-# Keeping all previous logging methods for backwards compatibility
+# Alias functions with default logging methods
 log_section = logger.info
 log_key_value = logger.info
 log_value = logger.info
 log_dict = log_key_value
 log_error = log_advanced_error
-
-# Decorators and other methods remain the same as in the previous implementation
