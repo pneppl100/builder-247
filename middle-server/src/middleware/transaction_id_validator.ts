@@ -1,37 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
-import { v4 as uuidValidate, version as uuidVersion } from 'uuid';
+import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 import { performance } from 'perf_hooks';
-import winston from 'winston';
 
-// Configure logging
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: 'transaction-errors.log' })
-  ]
-});
+/**
+ * Transaction Validation Result
+ */
+export interface TransactionValidationResult {
+  isValid: boolean;
+  error?: string;
+  details?: string;
+}
 
 /**
  * Transaction Uniqueness Service Interface
  */
-interface TransactionUniquenessService {
+export interface TransactionUniquenessService {
   /**
-   * Check if a transaction ID is unique
-   * @param transactionId The transaction ID to check
-   * @returns Promise resolving to boolean indicating uniqueness
+   * Validate transaction ID uniqueness
+   * @param transactionId The transaction ID to validate
+   * @returns Promise resolving to validation result
    */
-  isUnique(transactionId: string): Promise<boolean>;
+  validateTransaction(transactionId: string): Promise<TransactionValidationResult>;
 }
 
 /**
  * Configuration for Transaction ID Validation
  */
-interface TransactionIDConfig {
+export interface TransactionIDConfig {
   required?: boolean;
   headerName?: string;
   uniquenessService?: TransactionUniquenessService;
@@ -58,12 +53,9 @@ export const transactionIDValidator = (config: TransactionIDConfig = {}) => {
     try {
       // Check if transaction ID is required but missing
       if (required && !transactionId) {
-        logger.warn('Transaction ID required but missing', {
-          route: req.path,
-          method: req.method
-        });
         return res.status(400).json({
-          error: 'Transaction ID is required',
+          isValid: false,
+          error: 'Transaction ID Required',
           details: `Please provide a valid transaction ID in the '${headerName}' header`
         });
       }
@@ -72,12 +64,8 @@ export const transactionIDValidator = (config: TransactionIDConfig = {}) => {
       if (transactionId) {
         // Validate UUID format
         if (!uuidValidate(transactionId) || uuidVersion(transactionId) !== 4) {
-          logger.warn('Invalid transaction ID format', {
-            transactionId,
-            route: req.path,
-            method: req.method
-          });
           return res.status(400).json({
+            isValid: false,
             error: 'Invalid Transaction ID',
             details: 'Transaction ID must be a valid UUID v4'
           });
@@ -85,16 +73,13 @@ export const transactionIDValidator = (config: TransactionIDConfig = {}) => {
 
         // Check transaction uniqueness if service is provided
         if (uniquenessService) {
-          const isUnique = await uniquenessService.isUnique(transactionId);
-          if (!isUnique) {
-            logger.warn('Duplicate transaction ID', {
-              transactionId,
-              route: req.path,
-              method: req.method
-            });
+          const validationResult = await uniquenessService.validateTransaction(transactionId);
+          
+          if (!validationResult.isValid) {
             return res.status(409).json({
-              error: 'Duplicate Transaction ID',
-              details: 'This transaction has already been processed'
+              isValid: false,
+              error: validationResult.error || 'Duplicate Transaction',
+              details: validationResult.details || 'This transaction has already been processed'
             });
           }
         }
@@ -104,24 +89,25 @@ export const transactionIDValidator = (config: TransactionIDConfig = {}) => {
       const endTime = performance.now();
       const duration = endTime - startTime;
       if (duration > maxLatency) {
-        logger.warn('Transaction ID validation exceeded max latency', {
-          duration,
-          maxLatency
-        });
+        // Log warning about excessive latency
+        console.warn(`Transaction ID validation exceeded max latency: ${duration}ms`);
       }
 
       // Attach transaction ID to request for further use
       req.transactionId = transactionId;
 
+      // Return successful validation result
+      res.locals.transactionValidation = {
+        isValid: true
+      };
+
       next();
     } catch (error) {
-      logger.error('Transaction ID validation error', {
-        error: error instanceof Error ? error.message : String(error),
-        route: req.path,
-        method: req.method
-      });
-      res.status(500).json({
-        error: 'Internal Server Error',
+      // Handle unexpected errors
+      console.error('Transaction ID validation error:', error);
+      return res.status(500).json({
+        isValid: false,
+        error: 'Internal Validation Error',
         details: 'Failed to validate transaction ID'
       });
     }
@@ -133,6 +119,11 @@ declare global {
   namespace Express {
     interface Request {
       transactionId?: string;
+    }
+    interface Response {
+      locals: {
+        transactionValidation?: TransactionValidationResult;
+      } & LocalsObject;
     }
   }
 }
