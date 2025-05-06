@@ -23,16 +23,14 @@ logger.propagate = False
 _logging_configured = False
 
 
-class SectionFormatter(logging.Formatter):
-    """Custom formatter with enhanced color and section handling."""
-
+class ColoredStreamHandler(logging.StreamHandler):
+    """Custom stream handler with colored output."""
     def format(self, record):
-        # Color and format logic remains the same as before
-        base_msg = super().format(record)
-        # Ensure colorized errors appear
+        """Override formatting to add color for different levels."""
+        msg = super().format(record)
         if record.levelno >= logging.ERROR:
-            base_msg = f"{Fore.RED}{base_msg}{Style.RESET_ALL}"
-        return base_msg
+            return f"{Fore.RED}{msg}{Style.RESET_ALL}"
+        return msg
 
 
 def configure_logging(log_level: int = logging.INFO) -> None:
@@ -45,7 +43,7 @@ def configure_logging(log_level: int = logging.INFO) -> None:
     global _logging_configured
     logger.handlers.clear()  # Ensure clean logging setup
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = ColoredStreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
     console_formatter = logging.Formatter('%(message)s')
     console_handler.setFormatter(console_formatter)
@@ -80,14 +78,18 @@ def log_advanced_error(
     # Format the error with context
     error_info = format_error(error, context, include_traceback)
 
-    # Log each component of the error separately
-    logger.log(log_level, f"Error: {error_info['message']}")
+    # Capture current outputs
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    # Log error details
+    logger.error(f"Error: {error_info['message']}")
     
     if context:
-        logger.log(log_level, f"Context: {context}")
+        logger.error(f"Context: {context}")
     
-    if include_traceback and 'traceback' in error_info:
-        logger.log(log_level, f"Traceback:\n{error_info['traceback']}")
+    if include_traceback:
+        logger.error(f"Traceback:\n{error_info['traceback']}")
 
 
 # Alias functions with default logging methods
