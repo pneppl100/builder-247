@@ -16,7 +16,7 @@ def test_prometheus_error():
 
     assert str(error) == "Test error [Context: module=test, action=validation]"
     assert error.context == context
-    assert "test_error_utils.py" in str(error.traceback)
+    assert "test_error_utils.py" in error.traceback
 
 
 def test_client_api_error():
